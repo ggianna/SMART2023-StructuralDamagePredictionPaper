@@ -16,7 +16,7 @@ class Trainer():
         self.n_epochs = n_epochs
         self.device = device
 
-    def train(self, train_loader, patience_epochs = 3, min_abs_loss_change = 10e-2, sufficient_loss = 10e-4):
+    def train(self, train_loader, patience_epochs = 3, min_abs_loss_change = 10e-2, sufficient_loss = 10e-4, output_every = 1):
         l = StartEndLogger()
 
         l.start("Training...")
@@ -40,11 +40,15 @@ class Trainer():
                 loss.backward()
                 self.optimizer.step()
             # Log result so far
-            l.log("Epoch: %d; Loss: %8.6f"%(epoch, epoch_total_loss))
+            if epoch % output_every == 0:
+                l.log("Epoch: %d; Loss: %8.6f"%(epoch, epoch_total_loss))
+            
             # If the epoch loss is worse than the minimum we have achieved, or there is no significant change
             if epoch_total_loss >= self.min_loss or (abs(epoch_total_loss - self.last_loss) < min_abs_loss_change) :
                 self.epochs_below_min_change += 1 # Update patience
             else:
+                if self.epochs_below_min_change > 0:
+                    l.log("Patience reset after %d epochs."%(self.epochs_below_min_change))
                 self.epochs_below_min_change = 0 # Reset patience
             
             self.min_loss = min(epoch_total_loss, self.min_loss) # Update min loss

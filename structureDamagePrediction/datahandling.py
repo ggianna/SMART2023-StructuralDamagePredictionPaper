@@ -102,7 +102,9 @@ class FileDataReader(BaseDataReader):
                 if len(s_line.strip()) == 0:
                     continue
 
-                cur_line_fields = s_line.split()
+                # Line format
+                # time s2 s3 s4
+                cur_line_fields = s_line.split()[1:] # Ignore time
                 import torch.types
                 cur_line_tensor = torch.tensor(list(map(float,cur_line_fields)), dtype=torch.float)
 

@@ -43,7 +43,7 @@ def main():
     model = models.LSTMModel(device=device)
     
     trainer = Trainer(model, n_epochs=1000, device=device, loss_fn=torch.nn.MSELoss())
-    trainer.train(train_dataloader,min_abs_loss_change=0.001, patience_epochs=50)
+    trainer.train(train_dataloader,min_abs_loss_change=0.001, patience_epochs=500, sufficient_loss=0.05, output_every=100)
     final_model = trainer.get_model()
 
     l.start("Validation...")
