@@ -53,6 +53,9 @@ class Trainer():
             if self.epochs_below_min_change > patience_epochs:
                 l.end("Training (due to patience exhaustion)...")
                 return
+            if  epoch_total_loss <= sufficient_loss:
+                l.end("Training (due to sufficient loss in epoch)...")
+                return
 
         l.end("Training...")
 
