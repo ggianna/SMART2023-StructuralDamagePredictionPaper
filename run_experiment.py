@@ -20,16 +20,18 @@ def main():
     dataset = StructuralDamageDataset(data, meta_data, 1)
 
     # Choose test instance index (leave one out)
-    test_instance_idx=np.random.choice(len(dataset) - 1)
-    l.log("Selected instance: %d"%(test_instance_idx))
+    test_instance_idx=np.random.choice(len(dataset) - 1, int(len(dataset) / 10))
+    l.log("Selected instances: %s"%(str(test_instance_idx)))
     # Create train and test data
     train_data = []
     test_data = []
     for idx,entry in enumerate(dataset):
-        if idx == test_instance_idx:
+        if idx in test_instance_idx:
             test_data.append(entry)
         else:
             train_data.append(entry)
+
+    l.log("Train / test sizes: %4d /%4d"%(len(train_data), len(test_data)))
     
     train_dataloader = DataLoader(train_data, batch_size=4, shuffle=True)
     test_dataloader = DataLoader(test_data, batch_size=1, shuffle=False)
@@ -40,7 +42,7 @@ def main():
 
     model = models.LSTMModel(device=device)
     
-    trainer = Trainer(model, n_epochs=10, device=device)
+    trainer = Trainer(model, n_epochs=300, device=device)
     trainer.train(train_dataloader)
     final_model = trainer.get_model()
 
@@ -55,7 +57,7 @@ def main():
 
                 y_pred = final_model(X_test).detach()
                 test_rmse = np.sqrt(trainer.loss_fn(y_pred, y_test).cpu())
-                l.log("Loss: %8.6f"%(test_rmse))
+                l.log("True: %8.6f -- Predicted: %8.6f (Loss: %8.6f)"%(y_test.cpu().item(), y_pred.cpu().item(), test_rmse))
     l.end()
 
 
