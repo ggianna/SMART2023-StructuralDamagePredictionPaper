@@ -172,6 +172,20 @@ class StructuralDamageDataset(IterableDataset):
         self.start = 0
         self.end = len(metadata_list)
 
+    def labels(self):
+         worker_info = torch.utils.data.get_worker_info()
+         if worker_info is None:  # single-process data loading, return the full iterator
+             iter_start = 0
+             iter_end = self.end
+         else:  # in a worker process
+             # split workload
+             per_worker = int(math.ceil((self.end - self.start) / float(worker_info.num_workers)))
+             worker_id = worker_info.id
+             iter_start = self.start + worker_id * per_worker
+             iter_end = min(iter_start + per_worker, self.end)
+
+         return iter(map(lambda x: x[1], self.instances[iter_start:iter_end]))
+
         
     def __iter__(self):
          worker_info = torch.utils.data.get_worker_info()
