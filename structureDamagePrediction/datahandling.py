@@ -1,6 +1,6 @@
-import os, sys
+import os, math
 import torch, typing
-from torch.utils.data import Dataset
+from torch.utils.data import IterableDataset
 from structureDamagePrediction.utils import StartEndLogger
 from typing import Tuple
 
@@ -56,7 +56,7 @@ class StructuralDamageDataAndMetadataReader():
         return sequence_data, sequence_metadata
 
 
-class BaseDataReader:
+class BaseDataReader():
     def read_data(self) -> tuple:
         """Returns the data and """
         seq = self.read_sequence()
@@ -96,7 +96,8 @@ class FileDataReader(BaseDataReader):
                     continue
 
                 cur_line_fields = s_line.split()
-                cur_line_tensor = torch.tensor(list(map(float,cur_line_fields)))
+                import torch.types
+                cur_line_tensor = torch.tensor(list(map(float,cur_line_fields)), dtype=torch.float)
 
                 seq_list.append(cur_line_tensor)
         
@@ -114,12 +115,12 @@ class FileDataReader(BaseDataReader):
             # caseStudey Damage_percentage DamageLayer1 DamageLayer2 DamageLayer3 DamageLayer4 DamageLayer5 DamageLocX DamageLocY
             _, mainline1, line1, line2, line3 = metadata_file.readlines() # Load lines, ignoring header
             # Init damages per layer
-            dmg_layer_1, dmg_layer_2, dmg_layer_3, dmg_layer_4, dmg_layer_5 = [[], [], [], [], []]
+            dmg_layer_1, dmg_layer_2, dmg_layer_3, dmg_layer_4, dmg_layer_5 = ([], [], [], [], [])
             # Convert and save
-            case_id, dmg_perc, dmg11, dmg21, dmg31, dmg41, dmg51, dmg_loc_x, dmg_loc_y = list(map(float, mainline1.split()))
-            dmg12, _, dmg32, _, dmg52 = list(map(float, line1.split()[2:7]))
-            dmg13, _, dmg33, _, dmg53 = list(map(float, line2.split()[2:7]))
-            dmg14, _, dmg34, _, dmg54 = list(map(float, line3.split()[2:7]))
+            case_id, dmg_perc, dmg11, dmg21, dmg31, dmg41, dmg51, dmg_loc_x, dmg_loc_y = tuple(map(float, mainline1.split()))
+            dmg12, _, dmg32, _, dmg52 = tuple(map(float, line1.split()[2:7]))
+            dmg13, _, dmg33, _, dmg53 = tuple(map(float, line2.split()[2:7]))
+            dmg14, _, dmg34, _, dmg54 = tuple(map(float, line3.split()[2:7]))
 
             dmg_layer_1.extend([dmg11, dmg12, dmg13, dmg14])
             dmg_layer_2.extend([dmg21, float('nan'), float('nan'), float('nan')])
@@ -133,7 +134,15 @@ class FileDataReader(BaseDataReader):
         ret_metadata = (case_id, torch.tensor(dmg_perc), dmg_tensor, torch.tensor(dmg_loc_x), torch.tensor(dmg_loc_y))
         return ret_metadata
 
-class StructuralDamageDataset(Dataset):
+class StructuralDamageDataset(IterableDataset):
+    def ___get_info(self, instance):
+        res = instance[self.tgt_tuple_index_in_metadata]
+        if self.tgt_row_in_metadata is not None:
+            res = res[self.tgt_row_in_metadata]
+            if self.tgt_col_in_metadata is not None:
+                res = res[self.tgt_col_in_metadata]
+        return res        
+    
     def __init__(self, data_list : list, metadata_list: list, tgt_tuple_index_in_metadata = 1, 
                  tgt_row_in_metadata: int = None , tgt_col_in_metadata: int = None ) -> None:
         super().__init__()
@@ -143,24 +152,31 @@ class StructuralDamageDataset(Dataset):
         self.tgt_row_in_metadata = tgt_row_in_metadata
         self.tgt_col_in_metadata = tgt_col_in_metadata
 
-    def __len__(self) -> int:
-        return len(self.metadata_list)
-    
-    def __get_tgt(self, meta_data_instance) -> float:
-
-        # TODO: Double check this conversion
-        if isinstance(meta_data_instance, list):
-            res = meta_data_instance[0]
-        else:
-            res = meta_data_instance
+        # Make sure lengths are the same
+        if len(self.data_list) != len(self.metadata_list):
+            raise RuntimeError("Data entries are more/less than the metadata entries.")
         
-        res = res[self.tgt_tuple_index_in_metadata]
-        if self.tgt_row_in_metadata is not None:
-            res = res[self.tgt_row_in_metadata]
-            if self.tgt_col_in_metadata is not None:
-                res = res[self.tgt_col_in_metadata]
-        return res
+        # Create pairs
+        self.instances = list(zip(self.data_list, list(map(self.___get_info, self.metadata_list))))
 
-    def __getitem__(self, index):
-        return self.data_list[index], self.__get_tgt(self.metadata_list[index])
+        # Init counters to support workers
+        self.start = 0
+        self.end = len(metadata_list)
 
+        
+    def __iter__(self):
+         worker_info = torch.utils.data.get_worker_info()
+         if worker_info is None:  # single-process data loading, return the full iterator
+             iter_start = 0
+             iter_end = self.end
+         else:  # in a worker process
+             # split workload
+             per_worker = int(math.ceil((self.end - self.start) / float(worker_info.num_workers)))
+             worker_id = worker_info.id
+             iter_start = self.start + worker_id * per_worker
+             iter_end = min(iter_start + per_worker, self.end)
+
+         return iter(self.instances[iter_start:iter_end])
+
+    def __len__(self):
+        return self.end

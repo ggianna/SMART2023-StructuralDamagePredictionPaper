@@ -6,12 +6,6 @@ import structureDamagePrediction.models as models
 from structureDamagePrediction.training import Trainer
 from torch.utils.data import DataLoader
 import torch
-import copy
-
-if torch.cuda.is_available():
-    torch.device = 'cuda'
-else:
-     torch.device = 'cpu'
 
 def main():
     # Init utils
@@ -29,14 +23,25 @@ def main():
     test_instance_idx=np.random.choice(len(dataset) - 1)
     l.log("Selected instance: %d"%(test_instance_idx))
     # Create train and test data
-    test_data = [dataset[test_instance_idx]]
-    train_data = dataset[:test_instance_idx] + dataset[test_instance_idx + 1:]
+    train_data = []
+    test_data = []
+    for idx,entry in enumerate(dataset):
+        if idx == test_instance_idx:
+            test_data.append(entry)
+        else:
+            train_data.append(entry)
     
     train_dataloader = DataLoader(train_data, batch_size=4, shuffle=True)
     test_dataloader = DataLoader(test_data, batch_size=1, shuffle=False)
 
     # Train model
-    trainer = Trainer(n_epochs=100)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    l.log("Device for learning: %s"%(torch.device))
+
+    model = models.LSTMModel()
+    model.to(device)
+    
+    trainer = Trainer(n_epochs=10)
     trainer.train(train_dataloader)
     final_model = trainer.get_model()
 
@@ -48,7 +53,7 @@ def main():
             for X_test, y_test in test_dataloader:
                 y_pred = final_model(X_test)
                 test_rmse = np.sqrt(trainer.loss_fn(y_pred, y_test))
-                l.log("Loss: "%(test_rmse))
+                l.log("Loss: %8.6f"%(test_rmse))
     l.end()
 
 

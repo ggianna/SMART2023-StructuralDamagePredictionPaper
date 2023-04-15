@@ -21,17 +21,21 @@ class Trainer():
 
         l.start("Training...")
         for epoch in range(self.n_epochs):
+            epoch_total_loss = 0.0
             self.model.train()
             for X_batch, y_batch in train_loader:
                 y_pred = self.model(X_batch)
-                # Log result so far
                 loss = self.loss_fn(y_pred, y_batch)
-                l.log("Epoch: %d; Loss: %4.2f"%(epoch, loss.detach()))
+                # Update epoch total
+                epoch_total_loss += loss.detach()
 
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
-        l.end()
+            # Log result so far
+            l.log("Epoch: %d; Loss: %8.6f"%(epoch, epoch_total_loss))
+            
+        l.end("Training...")
 
 
     def get_model(self):
