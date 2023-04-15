@@ -18,15 +18,13 @@ class StructuralDamageDataAndMetadataReader():
 
         return (sensor_filepath, metadata_filepath)
     
-    def read_data_and_metadata(self, l = StartEndLogger()) -> Tuple[list,list]:
+    def read_data_and_metadata(self, l = StartEndLogger(), normalize = True) -> Tuple[list,list]:
         """Returns a tuple of two lists containing the sequence data and the metadata of the read instances.
         """
         # Init sensor measurements sequence list
         sequence_data = []
         # Init target values list
         sequence_metadata = []
-
-        
 
         file_cnt = 1
         # While we have both files we need
@@ -52,6 +50,15 @@ class StructuralDamageDataAndMetadataReader():
             # Move on
             file_cnt += 1
             sensor_filepath, metadata_filepath = self.__get_filenames(file_cnt)
+
+        # Normalization
+        if normalize:
+            # Perform normalization to 0..1
+            # Find min, max
+            min_val = min(map(lambda x: x.min(), sequence_data))
+            sequence_data = list(map(lambda x: x - min_val, sequence_data))
+            max_val = max(map(lambda x: x.max(), sequence_data)) - min_val
+            sequence_data = list(map(lambda x: x / max_val, sequence_data))
         
         return sequence_data, sequence_metadata
 

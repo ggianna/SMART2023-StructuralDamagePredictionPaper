@@ -17,10 +17,10 @@ def main():
 
     # Meta-data format
     # case_id, dmg_perc, dmg_tensor, dmg_loc_x, dmg_loc_y    
-    dataset = StructuralDamageDataset(data, meta_data, 1)
+    dataset = StructuralDamageDataset(data, meta_data, 2, 0, 1)
 
-    # Choose test instance index (leave one out)
-    test_instance_idx=np.random.choice(len(dataset) - 1, int(len(dataset) / 10))
+    # Choose test instance indexes
+    test_instance_idx=np.random.choice(list(range(0, len(dataset))),  size = int(len(dataset) / 5), replace=False)
     l.log("Selected instances: %s"%(str(test_instance_idx)))
     # Create train and test data
     train_data = []
@@ -42,8 +42,8 @@ def main():
 
     model = models.LSTMModel(device=device)
     
-    trainer = Trainer(model, n_epochs=300, device=device)
-    trainer.train(train_dataloader)
+    trainer = Trainer(model, n_epochs=1000, device=device, loss_fn=torch.nn.MSELoss())
+    trainer.train(train_dataloader,min_abs_loss_change=0.001, patience_epochs=50)
     final_model = trainer.get_model()
 
     l.start("Validation...")
@@ -56,7 +56,7 @@ def main():
                 y_test = y_test.to(device)
 
                 y_pred = final_model(X_test).detach()
-                test_rmse = np.sqrt(trainer.loss_fn(y_pred, y_test).cpu())
+                test_rmse = trainer.loss_fn(y_pred, y_test).cpu()
                 l.log("True: %8.6f -- Predicted: %8.6f (Loss: %8.6f)"%(y_test.cpu().item(), y_pred.cpu().item(), test_rmse))
     l.end()
 
