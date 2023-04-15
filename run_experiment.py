@@ -36,12 +36,11 @@ def main():
 
     # Train model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    l.log("Device for learning: %s"%(torch.device))
+    l.log("Device for learning: %s"%(device.type))
 
-    model = models.LSTMModel()
-    model.to(device)
+    model = models.LSTMModel(device=device)
     
-    trainer = Trainer(n_epochs=10)
+    trainer = Trainer(model, n_epochs=10, device=device)
     trainer.train(train_dataloader)
     final_model = trainer.get_model()
 
@@ -51,8 +50,11 @@ def main():
         final_model.eval()
         with torch.no_grad():
             for X_test, y_test in test_dataloader:
-                y_pred = final_model(X_test)
-                test_rmse = np.sqrt(trainer.loss_fn(y_pred, y_test))
+                X_test = X_test.to(device)
+                y_test = y_test.to(device)
+
+                y_pred = final_model(X_test).detach()
+                test_rmse = np.sqrt(trainer.loss_fn(y_pred, y_test).cpu())
                 l.log("Loss: %8.6f"%(test_rmse))
     l.end()
 

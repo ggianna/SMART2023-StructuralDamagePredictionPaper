@@ -141,7 +141,7 @@ class StructuralDamageDataset(IterableDataset):
             res = res[self.tgt_row_in_metadata]
             if self.tgt_col_in_metadata is not None:
                 res = res[self.tgt_col_in_metadata]
-        return res        
+        return torch.tensor([res])        
     
     def __init__(self, data_list : list, metadata_list: list, tgt_tuple_index_in_metadata = 1, 
                  tgt_row_in_metadata: int = None , tgt_col_in_metadata: int = None ) -> None:
