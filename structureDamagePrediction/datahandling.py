@@ -150,16 +150,21 @@ class StructuralDamageDataset(IterableDataset):
             res = res[self.tgt_row_in_metadata]
             if self.tgt_col_in_metadata is not None:
                 res = res[self.tgt_col_in_metadata]
-        return torch.tensor([res])        
+
+        if self.transform_func is None:
+            return torch.tensor([res])
+        else:
+            return  torch.tensor([self.transform_func(res)])
     
     def __init__(self, data_list : list, metadata_list: list, tgt_tuple_index_in_metadata = 1, 
-                 tgt_row_in_metadata: int = None , tgt_col_in_metadata: int = None ) -> None:
+                 tgt_row_in_metadata: int = None , tgt_col_in_metadata: int = None, transform_func = None ) -> None:
         super().__init__()
         self.data_list = data_list
         self.metadata_list = metadata_list
         self.tgt_tuple_index_in_metadata = tgt_tuple_index_in_metadata
         self.tgt_row_in_metadata = tgt_row_in_metadata
         self.tgt_col_in_metadata = tgt_col_in_metadata
+        self.transform_func = transform_func
 
         # Make sure lengths are the same
         if len(self.data_list) != len(self.metadata_list):
@@ -173,18 +178,21 @@ class StructuralDamageDataset(IterableDataset):
         self.end = len(metadata_list)
 
     def labels(self):
-         worker_info = torch.utils.data.get_worker_info()
-         if worker_info is None:  # single-process data loading, return the full iterator
-             iter_start = 0
-             iter_end = self.end
-         else:  # in a worker process
-             # split workload
-             per_worker = int(math.ceil((self.end - self.start) / float(worker_info.num_workers)))
-             worker_id = worker_info.id
-             iter_start = self.start + worker_id * per_worker
-             iter_end = min(iter_start + per_worker, self.end)
-
-         return iter(map(lambda x: x[1], self.instances[iter_start:iter_end]))
+        worker_info = torch.utils.data.get_worker_info()
+        if worker_info is None:  # single-process data loading, return the full iterator
+            iter_start = 0
+            iter_end = self.end
+        else:  # in a worker process
+            # split workload
+            per_worker = int(math.ceil((self.end - self.start) / float(worker_info.num_workers)))
+            worker_id = worker_info.id
+            iter_start = self.start + worker_id * per_worker
+            iter_end = min(iter_start + per_worker, self.end)
+            
+        if self.transform_func is None:
+            return iter(map(lambda x: x[1], self.instances[iter_start:iter_end]))
+        else:
+            return iter(map(lambda x: self.transform_func(x[1]), self.instances[iter_start:iter_end]))
 
         
     def __iter__(self):
