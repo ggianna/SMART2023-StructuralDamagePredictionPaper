@@ -6,7 +6,7 @@ from structureDamagePrediction.models import LSTMModel
 from structureDamagePrediction.utils import StartEndLogger
 
 class Trainer():
-    def __init__(self, model, optimizer = None, loss_fn = nn.MSELoss(), n_epochs = 2000, device = None) -> None:
+    def __init__(self, model, optimizer = None, loss_fn = nn.L1Loss(), n_epochs = 2000, device = None) -> None:
         self.model = model
         if optimizer is None:
             self.optimizer = optim.Adam(model.parameters())
