@@ -17,11 +17,20 @@ def main():
     # Read data and metadata
     data, meta_data = reader.read_data_and_metadata()
 
+    # Transformation function for classification
+    def transform_func(x):
+        idx = [0.025, 0.05, 0.10].index(x)
+        return idx
+
+    # Regression (no change)    
+    # transform_func = None
+
     # Meta-data format
     # case_id, dmg_perc, dmg_tensor, dmg_loc_x, dmg_loc_y    
-    dataset = StructuralDamageDataset(data, meta_data, 1)
-
-    number_of_runs = 10
+    dataset = StructuralDamageDataset(data, meta_data, 
+                                      tgt_tuple_index_in_metadata=1,  tgt_row_in_metadata=None, tgt_col_in_metadata=None, # What to use: dmg percentage
+                                      transform_func=transform_func)
+    number_of_runs = 3
 
 
     # Only one should be True
@@ -65,14 +74,20 @@ def main():
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         l.log("Device for learning: %s"%(device.type))
 
-        model = models.LSTMModel(device=device)
+        # Regression
+        # model = models.LSTMRegressionModel(device=device)
         # model = models.RNNModel(device=device)
+        # loss_fn=torch.nn.L1Loss()
+
+        # Classification
+        model = models.LSTMClassificationModel(device=device, num_classes=3)
+        loss_fn=torch.nn.CrossEntropyLoss()
         
         trainer = Trainer(model, 
                         optimizer=torch.optim.Adam(params=model.parameters(), 
                                                             betas=(0.9, 0.999), eps=10e-7, lr=1e-4) , 
                         # optimizer=torch.optim.SGD(model.parameters(),lr=0.1, momentum=0.1),
-                        n_epochs=500, device=device, loss_fn=torch.nn.L1Loss())
+                        n_epochs=500, device=device, loss_fn=loss_fn)
         trainer.train(train_dataloader,min_abs_loss_change=0.0001, patience_epochs=200, sufficient_loss=0.001, output_every=100)
         final_model = trainer.get_model()
 

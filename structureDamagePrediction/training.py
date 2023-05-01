@@ -2,8 +2,9 @@ import numpy as np
 import torch.optim as optim
 import torch.utils.data as data
 import  torch.nn as nn, torch
-from structureDamagePrediction.models import LSTMModel
+from structureDamagePrediction.models import LSTMRegressionModel
 from structureDamagePrediction.utils import StartEndLogger
+from typing import Callable
 
 class Trainer():
     def __init__(self, model, optimizer = None, loss_fn = nn.L1Loss(), n_epochs = 2000, device = None) -> None:
@@ -16,7 +17,8 @@ class Trainer():
         self.n_epochs = n_epochs
         self.device = device
 
-    def train(self, train_loader, patience_epochs = 3, min_abs_loss_change = 10e-2, sufficient_loss = 10e-4, output_every = 1):
+    def train(self, train_loader, patience_epochs = 3, min_abs_loss_change = 10e-2, sufficient_loss = 10e-4, output_every = 1, 
+              label_encoder: Callable[[torch.Tensor],torch.Tensor] = None, softmax : bool = False):
         l = StartEndLogger()
 
         l.start("Training...")
@@ -32,6 +34,10 @@ class Trainer():
                 y_batch = y_batch.to(self.device)
 
                 y_pred = self.model(X_batch)
+                # If softmax keep max item
+                if softmax:
+                    y_pred = y_pred.max(1)
+
                 loss = self.loss_fn(y_pred, y_batch)
                 # Update epoch total
                 epoch_total_loss += loss.detach()

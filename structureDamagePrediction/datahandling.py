@@ -116,7 +116,7 @@ class FileDataReader(BaseDataReader):
         return ret_seq
 
     
-    def read_metadata(self) -> tuple[int, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def read_metadata(self) -> Tuple[int, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Returns a Tensor containing (as float tensors) the following: the case_id, dmg_perc, dmg_tensor, dmg_loc_x, dmg_loc_y"""
 
         # Read lines
@@ -157,7 +157,7 @@ class StructuralDamageDataset(IterableDataset):
             return  torch.tensor([self.transform_func(res)])
     
     def __init__(self, data_list : list, metadata_list: list, tgt_tuple_index_in_metadata = 1, 
-                 tgt_row_in_metadata: int = None , tgt_col_in_metadata: int = None, transform_func = None ) -> None:
+                 tgt_row_in_metadata: int = None , tgt_col_in_metadata: int = None, transform_func = None, classification: bool  = False) -> None:
         super().__init__()
         self.data_list = data_list
         self.metadata_list = metadata_list
@@ -165,6 +165,7 @@ class StructuralDamageDataset(IterableDataset):
         self.tgt_row_in_metadata = tgt_row_in_metadata
         self.tgt_col_in_metadata = tgt_col_in_metadata
         self.transform_func = transform_func
+        self.classification = classification
 
         # Make sure lengths are the same
         if len(self.data_list) != len(self.metadata_list):
