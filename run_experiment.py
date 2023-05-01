@@ -170,9 +170,11 @@ def main():
         if classification:
             # Classification
             #################
+            # Neural netowrk models
             # model = models.LSTMClassificationModel(device=device, num_classes=3)        
             # model = models.SimpleLinear(device=device, input_size = 3 * fourier_dims,num_classes=3)
-            loss_fn=torch.nn.CrossEntropyLoss()
+            # loss_fn=torch.nn.CrossEntropyLoss()
+            
             # Non-NN
             model = models.KNNModel(3)
             # model = models.DecisionTreeModel()
