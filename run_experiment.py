@@ -1,3 +1,4 @@
+#! /usr/bin/env python
 from structureDamagePrediction.datahandling import StructuralDamageDataAndMetadataReader, StructuralDamageDataset
 from datetime import datetime
 from structureDamagePrediction.utils import StartEndLogger

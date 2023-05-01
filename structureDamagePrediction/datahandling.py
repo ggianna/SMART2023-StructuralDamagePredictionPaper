@@ -51,12 +51,15 @@ class StructuralDamageDataAndMetadataReader():
             sequence_metadata.append(metadata)
 
             # DEBUG
-            l.log("Data:\n%s"%(str(data)))
-            l.log("Metadata:\n%s"%(str(metadata)))
+            # l.log("Data:\n%s"%(str(data)))
+            # l.log("Metadata:\n%s"%(str(metadata)))
 
             # Move on
             file_cnt += 1
             sensor_filepath, metadata_filepath = self.__get_filenames(file_cnt)
+
+        # DEBUG LINES
+        l.log("Read %d files..."%(file_cnt))
 
         # Normalization
         if normalize:
