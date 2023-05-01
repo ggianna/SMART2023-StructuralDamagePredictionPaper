@@ -175,6 +175,9 @@ def main():
             loss_fn=torch.nn.CrossEntropyLoss()
             # Non-NN
             model = models.KNNModel(3)
+            # model = models.DecisionTreeModel()
+            # Dummy model
+            # model = models.DummyModel()
             loss_fn = None
         else:
             # Regression
