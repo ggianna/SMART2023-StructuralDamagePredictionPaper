@@ -37,14 +37,24 @@ def main():
     dataset = StructuralDamageDataset(data, meta_data, 
                                       tgt_tuple_index_in_metadata=1,  tgt_row_in_metadata=None, tgt_col_in_metadata=None, # What to use: dmg percentage
                                       transform_func=transform_func)
-    number_of_runs = 3
 
 
     # Only one should be True
-    leave_one_out = True # TODO Implement
-    stratify = True
+    # possible values for splitting
+    LEAVE_ONE_OUT = "leave one out"
+    STRATIFY = "stratify"
+
+    splitting = LEAVE_ONE_OUT
+    # Update booleans
+    leave_one_out = splitting == LEAVE_ONE_OUT
+    stratify = splitting == STRATIFY
+
     classification = True
 
+    if leave_one_out:
+        number_of_runs = len(dataset)
+    else:
+        number_of_runs = 3
 
     predicted_list = []
     real_list = []
@@ -52,17 +62,26 @@ def main():
     for iRun in range(number_of_runs):
         l.log("+++++ Starting run #%d"%(iRun))
 
+        if leave_one_out:
+            test_perc = 1.0 / len(dataset)
+        else:
+            test_perc = 0.20
+
         if stratify:
             _, test_instance_idx = train_test_split(np.arange(len(dataset)),
-                                                        test_size=0.20,
+                                                        test_size=test_perc,
                                                         random_state=5, # Reproducibility
                                                         shuffle=True,
                                                         stratify=list(dataset.labels())
                                                         )
         else:
-            # Choose test instance indexes
-            test_instance_idx=np.random.choice(list(range(0, len(dataset))),  size = int(len(dataset) / 5), replace=False)
-            l.log("Selected instances: %s"%(str(test_instance_idx)))
+            # Choose as test instance index the current run number
+            if leave_one_out:
+                test_instance_idx = [iRun]
+            else:
+                # Choose test instance indexes
+                test_instance_idx=np.random.choice(list(range(0, len(dataset))),  size = math.ceil(test_perc * len(dataset)), replace=False)
+                l.log("Selected instances: %s"%(str(test_instance_idx)))
 
         # Create train and test data
         train_data = []
