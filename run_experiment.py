@@ -8,12 +8,19 @@ from torch.utils.data import DataLoader
 import torch, math
 from sklearn.model_selection import train_test_split
 import scipy.stats as stats
+import sys
 
 def main():
     # Init utils
     l = StartEndLogger()
+
+    if len(sys.argv) > 1:
+        base_dir = sys.argv[1]
+    else:
+        base_dir = None
+
     # Init reader
-    reader = StructuralDamageDataAndMetadataReader()
+    reader = StructuralDamageDataAndMetadataReader(base_dir=base_dir)
     # Read data and metadata
     data, meta_data = reader.read_data_and_metadata()
 
@@ -35,7 +42,8 @@ def main():
 
     # Only one should be True
     leave_one_out = True # TODO Implement
-    stratify = False
+    stratify = True
+    classification = True
 
 
     predicted_list = []
@@ -74,14 +82,19 @@ def main():
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         l.log("Device for learning: %s"%(device.type))
 
-        # Regression
-        # model = models.LSTMRegressionModel(device=device)
-        # model = models.RNNModel(device=device)
-        # loss_fn=torch.nn.L1Loss()
 
-        # Classification
-        model = models.LSTMClassificationModel(device=device, num_classes=3)
-        loss_fn=torch.nn.CrossEntropyLoss()
+        if classification:
+            # Classification
+            #################
+            model = models.LSTMClassificationModel(device=device, num_classes=3)        
+            loss_fn=torch.nn.CrossEntropyLoss()
+        else:
+            # Regression
+            #############
+            model = models.LSTMRegressionModel(device=device)
+            # model = models.RNNModel(device=device)
+            loss_fn=torch.nn.L1Loss()
+
         
         trainer = Trainer(model, 
                         optimizer=torch.optim.Adam(params=model.parameters(), 
@@ -101,18 +114,30 @@ def main():
                 real_list.append(y_test.item())
 
                 y_pred = final_model(X_test).detach()
-                predicted_list.append(y_pred.item())
-                
                 test_loss = trainer.loss_fn(y_pred, y_test).cpu()
-                prc_loss = 100 * test_loss / y_test
-                l.log("True: %8.6f -- Predicted: %8.6f (Loss: %8.6f; Percantile: %5.2f%%)"%(y_test.cpu().item(), y_pred.cpu().item(), test_loss ,prc_loss))
+
+                if classification:
+                    ypred_final = y_pred.max(1).indices
+                    predicted_list.append(ypred_final.cpu().item())
+                    prc_loss = 0.0
+                else:
+                    ypred_final = y_pred.item()
+                    predicted_list.append(ypred_final.cpu().item())
+                    prc_loss = 100 * test_loss / y_test
+
+                l.log("True: %8.6f -- Predicted: %8.6f (Loss: %8.6f; Percantile: %5.2f%%)"%(y_test.cpu().item(), ypred_final, test_loss ,prc_loss))
 
         l.end()
 
     l.log("Outputting overall results list:")
     l.log("\n".join(map(lambda x: str(x),list(zip(real_list, predicted_list)))))
-    corr, p = stats.spearmanr(real_list, predicted_list)
-    l.log("Correlation: %f (p-val: %f)"%(corr, p))
+
+    if classification:
+        accuracy = 1.0 * sum([real_list[iCnt] == predicted_list[iCnt] for iCnt in range(len(real_list))]) / len(real_list)
+        l.log("Accuracy: %f"%(accuracy))
+    else:
+        corr, p = stats.spearmanr(real_list, predicted_list)
+        l.log("Correlation: %f (p-val: %f)"%(corr, p))
 
 if __name__ == "__main__":
     main()

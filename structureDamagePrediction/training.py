@@ -18,7 +18,7 @@ class Trainer():
         self.device = device
 
     def train(self, train_loader, patience_epochs = 3, min_abs_loss_change = 10e-2, sufficient_loss = 10e-4, output_every = 1, 
-              label_encoder: Callable[[torch.Tensor],torch.Tensor] = None, softmax : bool = False):
+              label_encoder: Callable[[torch.Tensor],torch.Tensor] = None):
         l = StartEndLogger()
 
         l.start("Training...")
@@ -34,9 +34,6 @@ class Trainer():
                 y_batch = y_batch.to(self.device)
 
                 y_pred = self.model(X_batch)
-                # If softmax keep max item
-                if softmax:
-                    y_pred = y_pred.max(1)
 
                 loss = self.loss_fn(y_pred, y_batch)
                 # Update epoch total

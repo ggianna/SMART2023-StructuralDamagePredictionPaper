@@ -5,14 +5,21 @@ from structureDamagePrediction.utils import StartEndLogger
 from typing import Tuple
 
 class StructuralDamageDataAndMetadataReader():
-    def __get_filenames(self, file_num : int, base_dir = "data/", sensor_base_filename = "data_sensors_case_", 
+    def __init__(self, base_dir = "data/"):
+        self.base_dir = base_dir
+
+    def __get_filenames(self, file_num : int, base_dir = None, sensor_base_filename = "data_sensors_case_", 
         sensor_base_file_ext = ".csv", 
         metadata_base_filename = "metaData_case_", 
         metadata_base_file_ext = ".csv",
         l = StartEndLogger()) -> Tuple[str,str] :
         """Returns a tuple of the (sensor_filepath, metadata_filepath)
         """
-        
+
+        # Use default if not asked for something else
+        if base_dir is None:
+            base_dir = self.base_dir
+
         sensor_filepath = "%s%s%d%s"%(base_dir, sensor_base_filename, file_num, sensor_base_file_ext)
         metadata_filepath = "%s%s%d%s"%(base_dir, metadata_base_filename, file_num, metadata_base_file_ext)
 
@@ -154,10 +161,10 @@ class StructuralDamageDataset(IterableDataset):
         if self.transform_func is None:
             return torch.tensor([res])
         else:
-            return  torch.tensor([self.transform_func(res)])
+            return  torch.tensor(self.transform_func(res))
     
     def __init__(self, data_list : list, metadata_list: list, tgt_tuple_index_in_metadata = 1, 
-                 tgt_row_in_metadata: int = None , tgt_col_in_metadata: int = None, transform_func = None, classification: bool  = False) -> None:
+                 tgt_row_in_metadata: int = None , tgt_col_in_metadata: int = None, transform_func = None) -> None:
         super().__init__()
         self.data_list = data_list
         self.metadata_list = metadata_list
@@ -165,7 +172,6 @@ class StructuralDamageDataset(IterableDataset):
         self.tgt_row_in_metadata = tgt_row_in_metadata
         self.tgt_col_in_metadata = tgt_col_in_metadata
         self.transform_func = transform_func
-        self.classification = classification
 
         # Make sure lengths are the same
         if len(self.data_list) != len(self.metadata_list):
@@ -190,10 +196,10 @@ class StructuralDamageDataset(IterableDataset):
             iter_start = self.start + worker_id * per_worker
             iter_end = min(iter_start + per_worker, self.end)
             
-        if self.transform_func is None:
-            return iter(map(lambda x: x[1], self.instances[iter_start:iter_end]))
-        else:
-            return iter(map(lambda x: self.transform_func(x[1]), self.instances[iter_start:iter_end]))
+        # if self.transform_func is None:
+        return iter(map(lambda x: x[1], self.instances[iter_start:iter_end]))
+        # else:
+            # return iter(map(lambda x: self.transform_func(x[1]), self.instances[iter_start:iter_end]))
 
         
     def __iter__(self):
