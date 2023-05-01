@@ -6,7 +6,7 @@ from structureDamagePrediction.models import LSTMRegressionModel
 from structureDamagePrediction.utils import StartEndLogger
 from typing import Callable
 
-class Trainer():
+class NeuralNetTrainer():
     def __init__(self, model, optimizer = None, loss_fn = nn.L1Loss(), n_epochs = 2000, device = None) -> None:
         self.model = model
         if optimizer is None:
@@ -50,8 +50,9 @@ class Trainer():
             if epoch_total_loss >= self.min_loss or (abs(epoch_total_loss - self.last_loss) < min_abs_loss_change) :
                 self.epochs_below_min_change += 1 # Update patience
             else:
-                if self.epochs_below_min_change > 0:
-                    l.log("Patience reset after %d epochs."%(self.epochs_below_min_change))
+                # DEBUG INFO
+                # if self.epochs_below_min_change > 0:
+                #     l.log("Patience reset after %d epochs."%(self.epochs_below_min_change))
                 self.epochs_below_min_change = 0 # Reset patience
             
             self.min_loss = min(epoch_total_loss, self.min_loss) # Update min loss

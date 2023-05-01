@@ -161,27 +161,33 @@ class StructuralDamageDataset(IterableDataset):
             if self.tgt_col_in_metadata is not None:
                 res = res[self.tgt_col_in_metadata]
 
-        if self.transform_func is None:
+        if self.label_transform_func is None:
             return torch.tensor([res])
         else:
-            return  torch.tensor(self.transform_func(res))
+            return  torch.tensor(self.label_transform_func(res))
     
     def __init__(self, data_list : list, metadata_list: list, tgt_tuple_index_in_metadata = 1, 
-                 tgt_row_in_metadata: int = None , tgt_col_in_metadata: int = None, transform_func = None) -> None:
+                 tgt_row_in_metadata: int = None , tgt_col_in_metadata: int = None, feature_vector_transform_func = None,
+                 label_transform_func = None) -> None:
         super().__init__()
+        
         self.data_list = data_list
         self.metadata_list = metadata_list
         self.tgt_tuple_index_in_metadata = tgt_tuple_index_in_metadata
         self.tgt_row_in_metadata = tgt_row_in_metadata
         self.tgt_col_in_metadata = tgt_col_in_metadata
-        self.transform_func = transform_func
+        self.feature_vector_transform_func = feature_vector_transform_func
+        self.label_transform_func = label_transform_func
 
         # Make sure lengths are the same
         if len(self.data_list) != len(self.metadata_list):
             raise RuntimeError("Data entries are more/less than the metadata entries.")
         
-        # Create pairs
-        self.instances = list(zip(self.data_list, list(map(self.___get_info, self.metadata_list))))
+        # Create pairs, using transformation function for input vectors as appropriate.
+        if self.feature_vector_transform_func is None:
+            self.instances = list(zip(self.data_list, list(map(self.___get_info, self.metadata_list))))
+        else:
+            self.instances = list(zip(list(map(self.feature_vector_transform_func, self.data_list)), list(map(self.___get_info, self.metadata_list))))
 
         # Init counters to support workers
         self.start = 0
@@ -199,10 +205,7 @@ class StructuralDamageDataset(IterableDataset):
             iter_start = self.start + worker_id * per_worker
             iter_end = min(iter_start + per_worker, self.end)
             
-        # if self.transform_func is None:
         return iter(map(lambda x: x[1], self.instances[iter_start:iter_end]))
-        # else:
-            # return iter(map(lambda x: self.transform_func(x[1]), self.instances[iter_start:iter_end]))
 
         
     def __iter__(self):
