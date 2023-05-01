@@ -9,15 +9,38 @@ import torch, math
 from sklearn.model_selection import train_test_split
 import scipy.stats as stats
 import sys
+import argparse
 
 def main():
     # Init utils
-    l = StartEndLogger()
+    l = StartEndLogger()    
+    # Init argument parser
+    parser = argparse.ArgumentParser(description='Structural data analysis and prediction.')
+    parser.add_argument("-b", "--baseDir",  help="The base directory of the dataset. (Default: data/)", default="data/")
+    LEAVE_ONE_OUT = "leave-one-out"
+    STRATIFY = "stratify"
+    RANDOM = "random"
+    parser.add_argument("-s", "--splittingMethod", help="The splitting method: leave-one-out or stratify or random. (Default: leave-one-out)",
+                        choices=[LEAVE_ONE_OUT, STRATIFY, RANDOM],
+                        default=LEAVE_ONE_OUT)
+    CLASSIFICATION = "classification"
+    REGRESSION = "regression"
+    parser.add_argument("-p", "--predictionType", help="Type of prediction: classification or regression. (Default: classification)", 
+                        choices=[CLASSIFICATION, REGRESSION], default=CLASSIFICATION)
+    parser.add_argument("-e", "--epochs", help="Epochs for neural net training. (Default: 500)", 
+                        type=int, default=1000)
+    # TODO: Add arguments for metadata field access as label
+    # TODO: Add arguments for patience
 
-    if len(sys.argv) > 1:
-        base_dir = sys.argv[1]
-    else:
-        base_dir = None
+    # Read arguments
+    args = parser.parse_args(sys.argv[1:])
+    base_dir = args.baseDir
+    splitting = args.splittingMethod
+    classification = args.predictionType == CLASSIFICATION
+    n_epochs = args.epochs
+    l.log("Programme arguments:\n%s"%(str(args)))
+
+
 
     # Init reader
     reader = StructuralDamageDataAndMetadataReader(base_dir=base_dir)
@@ -39,17 +62,10 @@ def main():
                                       transform_func=transform_func)
 
 
-    # Only one should be True
-    # possible values for splitting
-    LEAVE_ONE_OUT = "leave one out"
-    STRATIFY = "stratify"
-
-    splitting = LEAVE_ONE_OUT
     # Update booleans
     leave_one_out = splitting == LEAVE_ONE_OUT
     stratify = splitting == STRATIFY
 
-    classification = True
 
     if leave_one_out:
         number_of_runs = len(dataset)
@@ -119,7 +135,7 @@ def main():
                         optimizer=torch.optim.Adam(params=model.parameters(), 
                                                             betas=(0.9, 0.999), eps=10e-7, lr=1e-4) , 
                         # optimizer=torch.optim.SGD(model.parameters(),lr=0.1, momentum=0.1),
-                        n_epochs=500, device=device, loss_fn=loss_fn)
+                        n_epochs=n_epochs, device=device, loss_fn=loss_fn)
         trainer.train(train_dataloader,min_abs_loss_change=0.0001, patience_epochs=200, sufficient_loss=0.001, output_every=100)
         final_model = trainer.get_model()
 
