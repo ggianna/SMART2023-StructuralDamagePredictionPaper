@@ -176,10 +176,10 @@ def main():
             # loss_fn=torch.nn.CrossEntropyLoss()
             
             # Non-NN
-            model = models.KNNModel(3)
+            #model = models.KNNModel(3)
             # model = models.DecisionTreeModel()
             # Dummy model
-            # model = models.DummyModel()
+            model = models.DummyModel()
             loss_fn = None
         else:
             # Regression
@@ -246,7 +246,18 @@ def main():
 
     if classification:
         accuracy = 1.0 * sum([real_list[iCnt] == predicted_list[iCnt] for iCnt in range(len(real_list))]) / len(real_list)
-        l.log("Accuracy: %f"%(accuracy))
+        l.log("Accuracy: %6.4f"%(accuracy))
+
+        def acc(realAndPredTupleList):
+            if realAndPredTupleList[0] == realAndPredTupleList[1]:
+                return 1.0
+            else:
+                return 0.0
+            
+        perFoldAcc = list(map(acc, zip(real_list,predicted_list)))
+        avgAcc = np.average(perFoldAcc)
+        stdErrAcc = np.std(perFoldAcc)/ np.sqrt(len(real_list))
+        l.log("Avg accuracy  %6.4f+/- stderr %6.4f"%(avgAcc, stdErrAcc))
     else:
         corr, p = stats.spearmanr(real_list, predicted_list)
         l.log("Correlation: %f (p-val: %f)"%(corr, p))
