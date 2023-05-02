@@ -55,6 +55,11 @@ def main():
     
     parser.add_argument("-fn", "--fourierDimensions", type=int, help="Fourier dimensions to keep. (Default: 3)", default=3)
 
+    LSTM = 'lstm'
+    LINEAR = 'linear'
+    KNN = 'knn'
+    DUMMY = 'dummy'
+    parser.add_argument("-cl", "--classifier", choices=[LSTM,LINEAR,KNN,DUMMY], help="Selected classifier. (Default: KNN)", default=KNN)
     # TODO: Add arguments for metadata field access as label
     # TODO: Add arguments for patience
 
@@ -63,11 +68,13 @@ def main():
     base_dir = args.baseDir
     splitting = args.splittingMethod
     classification = args.predictionType == CLASSIFICATION
+    classifier = args.classifier
     n_epochs = args.epochs
     fourier_dims = args.fourierDimensions
+    representation = args.representation
 
     # Select feature vector (sequence) transform function
-    if args.representation == FOURIER:
+    if representation == FOURIER:
         # Init transformation function
         def multidim_fft_transform(seq, dimensions=3, fourier_dimensions=fourier_dims):
             # Init concat
@@ -167,20 +174,23 @@ def main():
         l.log("Device for learning: %s"%(device.type))
 
 
+        
         if classification:
+            modelsLossesAndSupportedRepr={
+                # Non-NN
+                LSTM: (models.LSTMClassificationModel(device=device, num_classes=3),torch.nn.CrossEntropyLoss(), [SEQUENCE]),
+                LINEAR: (models.SimpleLinear(device=device,num_classes=3), [FOURIER]),
+                # NN
+                KNN: (models.KNNModel(3, 3 * fourier_dims), None, [FOURIER]),
+                DUMMY: (models.DummyModel(), None, [FOURIER]),
+            }
+
             # Classification
             #################
             # Neural netowrk models
-            # model = models.LSTMClassificationModel(device=device, num_classes=3)        
-            # model = models.SimpleLinear(device=device, input_size = 3 * fourier_dims,num_classes=3)
-            # loss_fn=torch.nn.CrossEntropyLoss()
-            
-            # Non-NN
-            #model = models.KNNModel(3)
-            # model = models.DecisionTreeModel()
-            # Dummy model
-            model = models.DummyModel()
-            loss_fn = None
+            model, loss_fn, compat_repr = modelsLossesAndSupportedRepr[classifier]
+            if representation not in compat_repr:
+                raise RuntimeError("Model %s only supports representations: %s."%(classifier,str(compat_repr)))
         else:
             # Regression
             #############
@@ -241,10 +251,13 @@ def main():
 
         l.end()
 
-    l.log("Outputting overall results list (real, predicted):")
-    l.log("\n".join(map(lambda x: str(x),list(zip(real_list, predicted_list)))))
+    l.log("Outputting overall results list:\nReal,Predicted")
+    l.log("\n".join(map(lambda x: "%d,%d"%(x[0],x[1]),list(zip(real_list, predicted_list)))), no_date=True)
 
     if classification:
+        # TODO: Break into smaller functions
+
+        # Accuracy
         accuracy = 1.0 * sum([real_list[iCnt] == predicted_list[iCnt] for iCnt in range(len(real_list))]) / len(real_list)
         l.log("Accuracy: %6.4f"%(accuracy))
 
@@ -253,11 +266,45 @@ def main():
                 return 1.0
             else:
                 return 0.0
-            
+        
+        # Mean and std error
         perFoldAcc = list(map(acc, zip(real_list,predicted_list)))
         avgAcc = np.average(perFoldAcc)
         stdErrAcc = np.std(perFoldAcc)/ np.sqrt(len(real_list))
         l.log("Avg accuracy  %6.4f+/- stderr %6.4f"%(avgAcc, stdErrAcc))
+
+        # Confusion matrix
+        classes = list(map(str, set(real_list)))
+        conf_matrix = dict()
+        # Init
+        for curClassTrue in classes:
+            conf_matrix[curClassTrue] = dict()
+            for curClassPred in classes:
+                conf_matrix[curClassTrue][curClassPred] = 0
+        
+        # Update
+        for curClassTrue, curClassPred in zip(real_list, predicted_list):
+            conf_matrix[str(curClassTrue)][str(curClassPred)] = conf_matrix[str(curClassTrue)][str(curClassPred)] + 1
+
+        # Output confusion matrix
+        l.log("Confusion matrix:")
+        sHeader = "\tPredicted\n"
+        sHeader += "\t%s"%("\t".join(classes))
+        l.log("%s"%(sHeader), no_date=True)
+
+        sStr = ""
+        for curClassTrue in classes:
+            sStr += curClassTrue
+            for curClassPred in classes:
+                sStr += "\t" + str(conf_matrix[curClassTrue][curClassPred])
+            sStr += "\n"
+        l.log(sStr, no_date=True)
+        
+        sFooter = "^True"
+        l.log("%s"%(sFooter), no_date=True)
+
+
+
     else:
         corr, p = stats.spearmanr(real_list, predicted_list)
         l.log("Correlation: %f (p-val: %f)"%(corr, p))
