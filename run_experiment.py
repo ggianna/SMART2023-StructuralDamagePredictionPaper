@@ -97,16 +97,17 @@ def main():
 
     LSTM = 'lstm'
     LINEAR = 'linear'
+    MLP = 'mlp'
     KNN = 'knn'
     DUMMY = 'dummy'
     DUMMY_MAJORITY = 'dummy_majority'
     DECISION_TREE = 'decision_tree'
-    parser.add_argument("-cl", "--classifier", choices=[LSTM,LINEAR,KNN,DUMMY, DUMMY_MAJORITY, DECISION_TREE], 
+    parser.add_argument("-cl", "--classifier", choices=[LSTM,MLP,KNN,DUMMY, DUMMY_MAJORITY, DECISION_TREE], 
                         help="Selected classifier. (Default: KNN)", default=KNN)
     # TODO: Add arguments for metadata field access as label
     # TODO: Add arguments for patience
 
-    parser.add_argument("-re", "--regressor", choices=[LSTM,LINEAR], 
+    parser.add_argument("-re", "--regressor", choices=[LSTM,MLP,LINEAR], 
                         help="Selected regressor. (Default: %s)"%(LINEAR), default=LINEAR)
 
     # Read arguments
@@ -157,7 +158,8 @@ def main():
         return idx
 
     # Regression (no change)    
-    # transform_func = None
+    if not classification:
+        transform_func = None
 
     # Meta-data format
     # case_id, dmg_perc, dmg_tensor, dmg_loc_x, dmg_loc_y    
@@ -227,7 +229,7 @@ def main():
             modelsLossesAndSupportedRepr={
                 # NN
                 LSTM: (models.LSTMClassificationModel(device=device, num_classes=3),torch.nn.CrossEntropyLoss(), [SEQUENCE]),
-                LINEAR: (models.SimpleLinear(device=device,num_classes=3), torch.nn.CrossEntropyLoss(),[FOURIER]),
+                MLP: (models.MLPClassifier(device=device,num_classes=3), torch.nn.CrossEntropyLoss(),[FOURIER]),
                 # Non-NN
                 KNN: (models.KNNModel(3, 3 * fourier_dims), None, [FOURIER]),
                 DECISION_TREE: (models.DecisionTreeModel(3 * fourier_dims), None, [FOURIER]),
@@ -246,8 +248,9 @@ def main():
             #############
             modelsLossesAndSupportedRepr={
                 # NN
-                LSTM: (models.LSTMRegressionModel(device=device, input_size=3),torch.nn.CrossEntropyLoss(), [SEQUENCE]),
-                LINEAR: (models.SimpleLinear(device=device,num_classes=1), torch.nn.L1Loss(), [FOURIER])
+                LSTM: (models.LSTMRegressionModel(device=device, input_size=3),torch.nn.L1Loss(), [SEQUENCE]),
+                LINEAR: (models.LinearRegressor(input_size = 3 * fourier_dims), torch.nn.L1Loss(), [FOURIER]),
+                MLP: (models.MLPRegressor(device=device,input_size = 3 * fourier_dims,num_classes=1), torch.nn.L1Loss(), [FOURIER])
             }            
             
             model, loss_fn, compat_repr = modelsLossesAndSupportedRepr[regressor]
@@ -286,9 +289,9 @@ def main():
 
                 y_pred = final_model(X_test)
                 if not isinstance(model, models.SKLearnModel):
-                    test_loss = trainer.loss_fn(y_pred, y_test).cpu()
+                    test_loss = trainer.loss_fn(y_pred.cpu(), y_test.cpu()).cpu()
                 else:
-                    test_loss = abs(y_pred.cpu() - y_test.cpu())
+                    test_loss = torch.mean(torch.abs(y_pred.cpu() - y_test.cpu()))
 
                 if classification:
                     if not isinstance(model, models.SKLearnModel):                    
@@ -299,20 +302,24 @@ def main():
                     predicted_list.append(ypred_final.cpu().item())
                     prc_loss = 0.0
                 else:
-                    ypred_final = y_pred.item()
-                    predicted_list.append(ypred_final.cpu().item())
-                    prc_loss = 100 * test_loss / y_test
+                    ypred_final = y_pred.cpu().item()
+                    predicted_list.append(ypred_final)
+                    try:
+                        prc_loss = 100 * test_loss.item() / (y_test.cpu().item() + 10e-10) # Ascertain no division by zero
+                    except ZeroDivisionError:
+                        prc_loss = float('nan')
 
                 l.log("True: %8.6f -- Predicted: %8.6f (Loss: %8.6f; Percantile: %5.2f%%)"%(y_test.cpu().item(), ypred_final, test_loss ,prc_loss))
 
         l.end()
 
     l.log("Outputting overall results list:\nReal,Predicted")
-    l.log("\n".join(map(lambda x: "%d,%d"%(x[0],x[1]),list(zip(real_list, predicted_list)))), no_date=True)
+    if classification:
+        l.log("\n".join(map(lambda x: "%d,%d"%(x[0],x[1]),list(zip(real_list, predicted_list)))), no_date=True)
+    else:
+        l.log("\n".join(map(lambda x: "%6.4f,%6.4f"%(x[0],x[1]),list(zip(real_list, predicted_list)))), no_date=True)
 
     if classification:
-        # TODO: Break into smaller functions
-
         # Output measures
         f1_macro = metrics.f1_score(real_list, predicted_list, average="macro")        
         avgAcc, stdErrAcc = get_accuracy_w_stderr(real_list, predicted_list)
@@ -325,8 +332,9 @@ def main():
 
 
     else:
+        mae = metrics.mean_absolute_error(real_list, predicted_list)
         corr, p = stats.spearmanr(real_list, predicted_list)
-        l.log("Correlation: %f (p-val: %f)"%(corr, p))
+        l.log("MAE: %6.4f; Correlation: %6.4f (p-val: %6.4f)"%(mae, corr, p))
 
     l.log("Programme arguments:\n%s"%(str(args)))
 

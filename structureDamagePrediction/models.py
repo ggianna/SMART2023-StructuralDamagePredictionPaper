@@ -1,9 +1,14 @@
 import torch.nn as nn
 import torch
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import LinearRegression
 import sklearn.dummy as dummy
 import sklearn.tree
 from abc import ABC
+
+class SKLearnModel(ABC):
+    def fit(self, X, Y):
+        pass
 
 class LSTMRegressionModel(nn.Sequential):
     def __init__(self, device, input_size = 3):
@@ -49,6 +54,39 @@ class RNNRegressionModel(nn.Sequential):
         x = self.last_layers(x)
         return x
 
+# Regression
+class MLPRegressor(nn.Sequential):
+    def __init__(self, device, input_size = 3, num_classes = 3):
+        super().__init__()
+        self.last_layers = nn.Sequential() 
+        self.last_layers.add_module("In", nn.Linear(input_size, input_size))
+        # self.last_layers.add_module("RelU", nn.ReLU())
+        self.last_layers.add_module("Out", nn.Linear(input_size, num_classes))
+        self.last_layers.to(device=device)
+
+        self.device = device
+        self.to(self.device)
+
+    def forward(self, x):
+        x = x.to(self.device)
+        x = self.last_layers(x)
+        return x
+
+class LinearRegressor(nn.Sequential, SKLearnModel):
+    def __init__(self, input_size = 3) -> None:
+        nn.Sequential.__init__(self)
+        self.identity = nn.Sequential()
+        self.identity.add_module("Id", nn.Identity(input_size))
+        self.linear = LinearRegression()
+
+    def forward(self, x):
+        x = self.identity(x)
+        return torch.from_numpy(self.linear.predict(x.detach().cpu().numpy()))
+    
+    def fit(self, X, y):
+        return self.linear.fit(X.detach().cpu().numpy(),y.detach().cpu().numpy())
+    
+
 # Classification
 class LSTMClassificationModel(nn.Sequential):
     def __init__(self, device, input_size = 3, num_classes = 3):
@@ -74,14 +112,14 @@ class LSTMClassificationModel(nn.Sequential):
         return x
     
 # Classification
-class SimpleLinear(nn.Sequential):
+class MLPClassifier(nn.Sequential):
     def __init__(self, device, input_size = 3, num_classes = 3):
         super().__init__()
         self.last_layers = nn.Sequential() 
         # self.last_layers.add_module("L1", nn.Linear(3, 15))
         # self.last_layers.add_module("L2", nn.Linear(15, 3))
         self.last_layers.add_module("In", nn.Linear(input_size, input_size))
-        self.last_layers.add_module("RelU", nn.ReLU())
+        # self.last_layers.add_module("RelU", nn.ReLU())
         self.last_layers.add_module("Out", nn.Linear(input_size, num_classes))
         self.last_layers.to(device=device)
 
@@ -93,9 +131,6 @@ class SimpleLinear(nn.Sequential):
         x = self.last_layers(x)
         return x
 
-class SKLearnModel(ABC):
-    def fit(self, X, Y):
-        pass
 
 class KNNModel(nn.Sequential, SKLearnModel):
     def __init__(self, n_neighbors, input_size = 3, num_classes = 3) -> None:
