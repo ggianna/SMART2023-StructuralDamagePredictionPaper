@@ -85,7 +85,21 @@ class LinearRegressor(nn.Sequential, SKLearnModel):
     
     def fit(self, X, y):
         return self.linear.fit(X.detach().cpu().numpy(),y.detach().cpu().numpy())
+
+class BaselineMeanRegressor(nn.Sequential, SKLearnModel):
+    def __init__(self, input_size = 3) -> None:
+        nn.Sequential.__init__(self)
+        self.identity = nn.Sequential()
+        self.identity.add_module("Id", nn.Identity(input_size))
+        self.mean = None
+
+    def forward(self, x):
+        return torch.tensor(self.mean)
     
+    def fit(self, X, y):
+        self.mean = torch.mean(y.detach().cpu())
+        return self.mean
+
 
 # Classification
 class LSTMClassificationModel(nn.Sequential):

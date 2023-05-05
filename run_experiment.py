@@ -102,12 +102,13 @@ def main():
     DUMMY = 'dummy'
     DUMMY_MAJORITY = 'dummy_majority'
     DECISION_TREE = 'decision_tree'
+    BASELINE_MEAN = 'baseline_mean'
     parser.add_argument("-cl", "--classifier", choices=[LSTM,MLP,KNN,DUMMY, DUMMY_MAJORITY, DECISION_TREE], 
                         help="Selected classifier. (Default: KNN)", default=KNN)
     # TODO: Add arguments for metadata field access as label
     # TODO: Add arguments for patience
 
-    parser.add_argument("-re", "--regressor", choices=[LSTM,MLP,LINEAR], 
+    parser.add_argument("-re", "--regressor", choices=[LSTM,MLP,LINEAR,BASELINE_MEAN], 
                         help="Selected regressor. (Default: %s)"%(LINEAR), default=LINEAR)
 
     # Read arguments
@@ -250,7 +251,8 @@ def main():
                 # NN
                 LSTM: (models.LSTMRegressionModel(device=device, input_size=3),torch.nn.L1Loss(), [SEQUENCE]),
                 LINEAR: (models.LinearRegressor(input_size = 3 * fourier_dims), torch.nn.L1Loss(), [FOURIER]),
-                MLP: (models.MLPRegressor(device=device,input_size = 3 * fourier_dims,num_classes=1), torch.nn.L1Loss(), [FOURIER])
+                MLP: (models.MLPRegressor(device=device,input_size = 3 * fourier_dims,num_classes=1), torch.nn.L1Loss(), [FOURIER]),
+                BASELINE_MEAN: (models.BaselineMeanRegressor(), None, [FOURIER, SEQUENCE])
             }            
             
             model, loss_fn, compat_repr = modelsLossesAndSupportedRepr[regressor]
