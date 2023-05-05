@@ -8,9 +8,49 @@ from structureDamagePrediction.training import NeuralNetTrainer
 from torch.utils.data import DataLoader
 import torch, math, random
 from sklearn.model_selection import train_test_split
+import sklearn.metrics as metrics
 import scipy.stats as stats
 import sys
 import argparse
+
+def get_accuracy_w_stderr(real_list, predicted_list):
+    # Accuracy w/ statistical significance
+    accuracy = 1.0 * sum([real_list[iCnt] == predicted_list[iCnt] for iCnt in range(len(real_list))]) / len(real_list)
+
+    def acc(realAndPredTupleList):
+        if realAndPredTupleList[0] == realAndPredTupleList[1]:
+            return 1.0
+        else:
+            return 0.0
+    
+    # Mean and std error
+    perFoldAcc = list(map(acc, zip(real_list,predicted_list)))
+    avgAcc = np.average(perFoldAcc)
+    stdErrAcc = np.std(perFoldAcc)/ np.sqrt(len(real_list))
+
+    return avgAcc, stdErrAcc
+
+def output_confusion_matrix(real_list, predicted_list, l):
+    classes = list(map(str, set(real_list)))
+
+    # Output confusion matrix
+    l.log("Confusion matrix:")
+    sHeader = "\tPredicted\n"
+    sHeader += "\t%s"%("\t".join(classes))
+    l.log("%s"%(sHeader), no_date=True)
+    conf_matrix = metrics.confusion_matrix(real_list, predicted_list)
+
+    sStr = ""
+    for curClassTrue in classes:
+        sStr += curClassTrue
+        for curClassPred in classes:
+            sStr += "\t" + str(conf_matrix[int(curClassTrue),int(curClassPred)])
+        sStr += "\n"
+    l.log(sStr, no_date=True)
+        
+    sFooter = "^True"
+    l.log("%s"%(sFooter), no_date=True)
+
 
 def main():
     # Setup reproducibility
@@ -53,13 +93,16 @@ def main():
     parser.add_argument("-r", "--representation", help="Type of representation: sequence or fourier. (Default: sequence)", 
                     choices=[SEQUENCE, FOURIER], default=SEQUENCE)
     
-    parser.add_argument("-fn", "--fourierDimensions", type=int, help="Fourier dimensions to keep. (Default: 3)", default=3)
+    parser.add_argument("-fn", "--fourierDimensions", type=int, help="Fourier dimensions to keep. (Default: 5)", default=5)
 
     LSTM = 'lstm'
     LINEAR = 'linear'
     KNN = 'knn'
     DUMMY = 'dummy'
-    parser.add_argument("-cl", "--classifier", choices=[LSTM,LINEAR,KNN,DUMMY], help="Selected classifier. (Default: KNN)", default=KNN)
+    DUMMY_MAJORITY = 'dummy_majority'
+    DECISION_TREE = 'decision_tree'
+    parser.add_argument("-cl", "--classifier", choices=[LSTM,LINEAR,KNN,DUMMY, DUMMY_MAJORITY, DECISION_TREE], 
+                        help="Selected classifier. (Default: KNN)", default=KNN)
     # TODO: Add arguments for metadata field access as label
     # TODO: Add arguments for patience
 
@@ -106,6 +149,7 @@ def main():
     # Transformation function for classification
     def transform_func(x):
         idx = [0.025, 0.05, 0.10].index(x)
+        # idx = [0.10, 0.05, 0.025].index(x)
         return idx
 
     # Regression (no change)    
@@ -182,7 +226,9 @@ def main():
                 LINEAR: (models.SimpleLinear(device=device,num_classes=3), [FOURIER]),
                 # NN
                 KNN: (models.KNNModel(3, 3 * fourier_dims), None, [FOURIER]),
+                DECISION_TREE: (models.DecisionTreeModel(3 * fourier_dims), None, [FOURIER]),
                 DUMMY: (models.DummyModel(), None, [FOURIER]),
+                DUMMY_MAJORITY: (models.DummyModel(strategy='most_frequent'), None, [FOURIER]),
             }
 
             # Classification
@@ -257,57 +303,23 @@ def main():
     if classification:
         # TODO: Break into smaller functions
 
-        # Accuracy
-        accuracy = 1.0 * sum([real_list[iCnt] == predicted_list[iCnt] for iCnt in range(len(real_list))]) / len(real_list)
-        l.log("Accuracy: %6.4f"%(accuracy))
-
-        def acc(realAndPredTupleList):
-            if realAndPredTupleList[0] == realAndPredTupleList[1]:
-                return 1.0
-            else:
-                return 0.0
-        
-        # Mean and std error
-        perFoldAcc = list(map(acc, zip(real_list,predicted_list)))
-        avgAcc = np.average(perFoldAcc)
-        stdErrAcc = np.std(perFoldAcc)/ np.sqrt(len(real_list))
+        # Output measures
+        f1_macro = metrics.f1_score(real_list, predicted_list, average="macro")        
+        avgAcc, stdErrAcc = get_accuracy_w_stderr(real_list, predicted_list)
         l.log("Avg accuracy  %6.4f+/- stderr %6.4f"%(avgAcc, stdErrAcc))
+        l.log("F1 macro  %6.4f"%(f1_macro))
 
         # Confusion matrix
-        classes = list(map(str, set(real_list)))
-        conf_matrix = dict()
-        # Init
-        for curClassTrue in classes:
-            conf_matrix[curClassTrue] = dict()
-            for curClassPred in classes:
-                conf_matrix[curClassTrue][curClassPred] = 0
-        
-        # Update
-        for curClassTrue, curClassPred in zip(real_list, predicted_list):
-            conf_matrix[str(curClassTrue)][str(curClassPred)] = conf_matrix[str(curClassTrue)][str(curClassPred)] + 1
-
-        # Output confusion matrix
-        l.log("Confusion matrix:")
-        sHeader = "\tPredicted\n"
-        sHeader += "\t%s"%("\t".join(classes))
-        l.log("%s"%(sHeader), no_date=True)
-
-        sStr = ""
-        for curClassTrue in classes:
-            sStr += curClassTrue
-            for curClassPred in classes:
-                sStr += "\t" + str(conf_matrix[curClassTrue][curClassPred])
-            sStr += "\n"
-        l.log(sStr, no_date=True)
-        
-        sFooter = "^True"
-        l.log("%s"%(sFooter), no_date=True)
+        output_confusion_matrix(real_list, predicted_list, l)
 
 
 
     else:
         corr, p = stats.spearmanr(real_list, predicted_list)
         l.log("Correlation: %f (p-val: %f)"%(corr, p))
+
+    l.log("Programme arguments:\n%s"%(str(args)))
+
 
 if __name__ == "__main__":
     main()
