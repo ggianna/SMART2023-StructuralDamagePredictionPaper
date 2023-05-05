@@ -106,12 +106,16 @@ def main():
     # TODO: Add arguments for metadata field access as label
     # TODO: Add arguments for patience
 
+    parser.add_argument("-re", "--regressor", choices=[LSTM,LINEAR], 
+                        help="Selected regressor. (Default: %s)"%(LINEAR), default=LINEAR)
+
     # Read arguments
     args = parser.parse_args(sys.argv[1:])
     base_dir = args.baseDir
     splitting = args.splittingMethod
     classification = args.predictionType == CLASSIFICATION
     classifier = args.classifier
+    regressor = args.regressor
     n_epochs = args.epochs
     fourier_dims = args.fourierDimensions
     representation = args.representation
@@ -221,10 +225,10 @@ def main():
         
         if classification:
             modelsLossesAndSupportedRepr={
-                # Non-NN
-                LSTM: (models.LSTMClassificationModel(device=device, num_classes=3),torch.nn.CrossEntropyLoss(), [SEQUENCE]),
-                LINEAR: (models.SimpleLinear(device=device,num_classes=3), [FOURIER]),
                 # NN
+                LSTM: (models.LSTMClassificationModel(device=device, num_classes=3),torch.nn.CrossEntropyLoss(), [SEQUENCE]),
+                LINEAR: (models.SimpleLinear(device=device,num_classes=3), torch.nn.CrossEntropyLoss(),[FOURIER]),
+                # Non-NN
                 KNN: (models.KNNModel(3, 3 * fourier_dims), None, [FOURIER]),
                 DECISION_TREE: (models.DecisionTreeModel(3 * fourier_dims), None, [FOURIER]),
                 DUMMY: (models.DummyModel(), None, [FOURIER]),
@@ -240,9 +244,15 @@ def main():
         else:
             # Regression
             #############
-            model = models.LSTMRegressionModel(device=device)
-            # model = models.RNNModel(device=device)
-            loss_fn=torch.nn.L1Loss()
+            modelsLossesAndSupportedRepr={
+                # NN
+                LSTM: (models.LSTMRegressionModel(device=device, input_size=3),torch.nn.CrossEntropyLoss(), [SEQUENCE]),
+                LINEAR: (models.SimpleLinear(device=device,num_classes=1), torch.nn.L1Loss(), [FOURIER])
+            }            
+            
+            model, loss_fn, compat_repr = modelsLossesAndSupportedRepr[regressor]
+            if representation not in compat_repr:
+                raise RuntimeError("Model %s only supports representations: %s."%(classifier,str(compat_repr)))
 
         if not isinstance(model, models.SKLearnModel):
             trainer = NeuralNetTrainer(model, 
