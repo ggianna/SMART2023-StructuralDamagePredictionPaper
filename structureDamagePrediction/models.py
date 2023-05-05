@@ -112,11 +112,11 @@ class KNNModel(nn.Sequential, SKLearnModel):
         return self.knn.fit(X.detach().cpu().numpy(),y.detach().cpu().numpy())
 
 class DummyModel(nn.Sequential, SKLearnModel):
-    def __init__(self, input_size = 3, num_classes = 3) -> None:
+    def __init__(self, input_size = 3, num_classes = 3, strategy='stratified') -> None:
         nn.Sequential.__init__(self)
         self.identity = nn.Sequential()
         self.identity.add_module("Id", nn.Identity(input_size))
-        self.dummy = dummy.DummyClassifier(strategy='stratified')
+        self.dummy = dummy.DummyClassifier(strategy=strategy)
 
     def forward(self, x):
         x = self.identity(x)

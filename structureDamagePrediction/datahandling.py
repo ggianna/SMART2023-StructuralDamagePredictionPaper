@@ -59,7 +59,7 @@ class StructuralDamageDataAndMetadataReader():
             sensor_filepath, metadata_filepath = self.__get_filenames(file_cnt)
 
         # DEBUG LINES
-        l.log("Read %d files..."%(file_cnt))
+        l.log("Read %d files..."%(file_cnt - 1))
 
         # Normalization
         if normalize:
