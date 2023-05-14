@@ -91,9 +91,9 @@ def main():
     SEQUENCE = 'sequence'
     FOURIER = 'fourier'
     parser.add_argument("-r", "--representation", help="Type of representation: sequence or fourier. (Default: sequence)", 
-                    choices=[SEQUENCE, FOURIER], default=SEQUENCE)
+                    choices=[SEQUENCE, FOURIER], default=FOURIER)
     
-    parser.add_argument("-fn", "--fourierDimensions", type=int, help="Fourier dimensions to keep. (Default: 5)", default=5)
+    parser.add_argument("-fn", "--fourierDimensions", type=int, help="Fourier dimensions to keep. (Default: 100)", default=100)
 
     LSTM = 'lstm'
     LINEAR = 'linear'
@@ -116,8 +116,17 @@ def main():
     base_dir = args.baseDir
     splitting = args.splittingMethod
     classification = args.predictionType == CLASSIFICATION
-    classifier = args.classifier
-    regressor = args.regressor
+    # Assign classifier only if we chose classification
+    # and rergressor only if we chose regression
+    if classification:
+        classifier = args.classifier
+        args.regressor = None
+        regressor = None
+    else:
+        classifier = None
+        args.classifier = None
+        regressor = args.regressor
+
     n_epochs = args.epochs
     fourier_dims = args.fourierDimensions
     representation = args.representation
@@ -293,7 +302,7 @@ def main():
                 if not isinstance(model, models.SKLearnModel):
                     test_loss = trainer.loss_fn(y_pred.cpu(), y_test.cpu()).cpu()
                 else:
-                    test_loss = torch.mean(torch.abs(y_pred.cpu() - y_test.cpu()))
+                    test_loss = torch.mean(torch.abs(y_pred.cpu() - y_test.cpu()), dtype=torch.float)
 
                 if classification:
                     if not isinstance(model, models.SKLearnModel):                    
