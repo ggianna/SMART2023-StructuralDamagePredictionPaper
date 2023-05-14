@@ -15,8 +15,9 @@ class LSTMRegressionModel(nn.Sequential):
                             break_seq: bool = False, subseq_max_size : int = 10):
         super().__init__()
 
-        self.break_seq = break_seq # TODO: Use
-        self.subseq_max_size = subseq_max_size  # TODO: Use
+        # Options for breaking sequence into subsequences
+        self.break_seq = break_seq
+        self.subseq_max_size = subseq_max_size
 
         self.lstm = nn.LSTM(input_size=input_size, hidden_size = hidden_size, 
                             # dropout=0.1, 
