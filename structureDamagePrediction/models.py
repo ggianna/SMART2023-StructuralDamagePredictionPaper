@@ -11,7 +11,7 @@ class SKLearnModel(ABC):
         pass
 
 class LSTMRegressionModel(nn.Sequential):
-    def __init__(self, device, input_size = 3, hidden_size = 3,
+    def __init__(self, device, input_size = 3, hidden_size = 3, num_layers = 1,
                             break_seq: bool = False, subseq_max_size : int = 10):
         super().__init__()
 
@@ -21,7 +21,7 @@ class LSTMRegressionModel(nn.Sequential):
 
         self.lstm = nn.LSTM(input_size=input_size, hidden_size = hidden_size, 
                             # dropout=0.1, 
-                            num_layers=1, batch_first=True, device=device)
+                            num_layers=num_layers, batch_first=True, device=device)
         self.last_layers = nn.Sequential() 
         # self.last_layers.add_module("L1", nn.Linear(3, 15))
         # self.last_layers.add_module("L2", nn.Linear(15, 3))
@@ -126,11 +126,11 @@ class BaselineMeanRegressor(nn.Sequential, SKLearnModel):
 
 # Classification
 class LSTMClassificationModel(nn.Sequential):
-    def __init__(self, device, input_size = 3, num_classes = 3, hidden_size = 3):
+    def __init__(self, device, input_size = 3, num_classes = 3, hidden_size = 3, num_layers = 1):
         super().__init__()
         self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size, 
                             # dropout=0.1, 
-                            num_layers=1, batch_first=True, device=device)
+                            num_layers=num_layers, batch_first=True, device=device)
         self.last_layers = nn.Sequential() 
         # self.last_layers.add_module("L1", nn.Linear(3, 15))
         # self.last_layers.add_module("L2", nn.Linear(15, 3))

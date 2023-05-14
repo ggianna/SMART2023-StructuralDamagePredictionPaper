@@ -116,6 +116,10 @@ def main():
     parser.add_argument("-ss", "--subseqSize", type=int,
                         help="Size of subseqeuences that the sequence will be broken down into. ", default=10) 
 
+    # LSTM params
+    parser.add_argument("-ll", "--lstmLayers", type=int,
+                        help="Number of LSTM layers stacked. (Default: 1)", default=1) 
+
     # Read arguments
     args = parser.parse_args(sys.argv[1:])
     base_dir = args.baseDir
@@ -267,7 +271,8 @@ def main():
             #############
             modelsLossesAndSupportedRepr={
                 # NN
-                LSTM: (models.LSTMRegressionModel(device=device, input_size=3, break_seq=break_sequence, subseq_max_size=subseq_size),
+                LSTM: (models.LSTMRegressionModel(device=device, input_size=3, break_seq=break_sequence, subseq_max_size=subseq_size, 
+                                                  num_layers=args.lstmLayers),
                        torch.nn.L1Loss(), [SEQUENCE]),
                 LINEAR: (models.LinearRegressor(input_size = 3 * fourier_dims), torch.nn.L1Loss(), [FOURIER]),
                 MLP: (models.MLPRegressor(device=device,input_size = 3 * fourier_dims,num_classes=1), torch.nn.L1Loss(), [FOURIER]),
