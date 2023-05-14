@@ -5,6 +5,7 @@ import  torch.nn as nn, torch
 from structureDamagePrediction.models import LSTMRegressionModel
 from structureDamagePrediction.utils import StartEndLogger
 from typing import Callable
+import time
 
 class NeuralNetTrainer():
     def __init__(self, model, optimizer = None, loss_fn = nn.L1Loss(), n_epochs = 2000, device = None) -> None:
@@ -26,6 +27,8 @@ class NeuralNetTrainer():
         self.min_loss = float('+inf') # Arbitrarily high
         self.last_loss = float('+inf')
 
+        start_time = time.time()
+
         for epoch in range(self.n_epochs):
             epoch_total_loss = 0.0
             self.model.train()
@@ -44,7 +47,7 @@ class NeuralNetTrainer():
                 self.optimizer.step()
             # Log result so far
             if epoch % output_every == 0:
-                l.log("Epoch: %d; Loss: %8.6f"%(epoch, epoch_total_loss))
+                l.log("Epoch: %d; Loss: %8.6f (sec per epoch %6.2f)"%(epoch, epoch_total_loss, (time.time() - start_time) / (epoch + 1)))
             
             # If the epoch loss is worse than the minimum we have achieved, or there is no significant change
             if epoch_total_loss >= self.min_loss or (abs(epoch_total_loss - self.last_loss) < min_abs_loss_change) :
