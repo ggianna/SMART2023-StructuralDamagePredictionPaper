@@ -11,8 +11,13 @@ class SKLearnModel(ABC):
         pass
 
 class LSTMRegressionModel(nn.Sequential):
-    def __init__(self, device, input_size = 3, hidden_size = 3):
+    def __init__(self, device, input_size = 3, hidden_size = 3,
+                            break_seq: bool = False, subseq_max_size : int = 10):
         super().__init__()
+
+        self.break_seq = break_seq # TODO: Use
+        self.subseq_max_size = subseq_max_size  # TODO: Use
+
         self.lstm = nn.LSTM(input_size=input_size, hidden_size = hidden_size, 
                             # dropout=0.1, 
                             num_layers=1, batch_first=True, device=device)
@@ -28,7 +33,24 @@ class LSTMRegressionModel(nn.Sequential):
 
     def forward(self, x):
         x = x.to(self.device)
-        x, _ = self.lstm(x) # Currently ignoring history / hidden state
+        # If we need to break the sequence to smaller chunks
+        if self.break_seq:
+            # Ascertain list size is a multiple of subseq_max_size
+            if  len(x[0]) % self.subseq_max_size != 0:
+                raise RuntimeError("Sequence must have a length which is a multiple of %d, if break_seq is true."%(self.subseq_max_size))
+            
+            # Count steps
+            steps = (int)(len(x[0]) / self.subseq_max_size)
+            # Break the sequence into enough steps, each of size subseq_max_size
+            for cnt, x_subseq in enumerate(torch.split(x, [self.subseq_max_size for iCnt in range(steps)], 1)):
+                if cnt == 0:
+                    # Push forward
+                    x, hidden = self.lstm(x_subseq) # Reinsert base dimension
+                else:
+                    x, hidden = self.lstm(x_subseq, hidden)  # Reinsert base dimension
+        else:
+            x, _ = self.lstm(x) # Here ignoring history / hidden state
+
         x = x[:, -1, :] # Extract only last timestep
         x = self.last_layers(x)
         return x

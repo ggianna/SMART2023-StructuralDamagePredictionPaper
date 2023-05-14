@@ -110,6 +110,11 @@ def main():
 
     parser.add_argument("-re", "--regressor", choices=[LSTM,MLP,LINEAR,BASELINE_MEAN], 
                         help="Selected regressor. (Default: %s)"%(LINEAR), default=LINEAR)
+    # Sequence breaking
+    parser.add_argument("-bs", "--breakSequence", action='store_true', 
+                        help="Break sequence into subsequences")
+    parser.add_argument("-ss", "--subseqSize", type=int,
+                        help="Size of subseqeuences that the sequence will be broken down into. ", default=10) 
 
     # Read arguments
     args = parser.parse_args(sys.argv[1:])
@@ -152,6 +157,10 @@ def main():
         sequence_transform = multidim_fft_transform        
     else:
         sequence_transform = None
+        # In sequence representation examine if breaking down has been asked (for sequential models)
+        break_sequence = args.breakSequence
+        subseq_size = args.subseqSize
+
     l.log("Programme arguments:\n%s"%(str(args)))
 
 
@@ -258,7 +267,8 @@ def main():
             #############
             modelsLossesAndSupportedRepr={
                 # NN
-                LSTM: (models.LSTMRegressionModel(device=device, input_size=3),torch.nn.L1Loss(), [SEQUENCE]),
+                LSTM: (models.LSTMRegressionModel(device=device, input_size=3, break_seq=break_sequence, subseq_max_size=subseq_size),
+                       torch.nn.L1Loss(), [SEQUENCE]),
                 LINEAR: (models.LinearRegressor(input_size = 3 * fourier_dims), torch.nn.L1Loss(), [FOURIER]),
                 MLP: (models.MLPRegressor(device=device,input_size = 3 * fourier_dims,num_classes=1), torch.nn.L1Loss(), [FOURIER]),
                 BASELINE_MEAN: (models.BaselineMeanRegressor(), None, [FOURIER, SEQUENCE])
