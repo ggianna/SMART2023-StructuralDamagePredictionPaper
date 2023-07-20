@@ -90,7 +90,7 @@ def main():
     
     SEQUENCE = 'sequence'
     FOURIER = 'fourier'
-    parser.add_argument("-r", "--representation", help="Type of representation: sequence or fourier. (Default: sequence)", 
+    parser.add_argument("-r", "--representation", help="Type of representation: sequence or fourier. (Default: fourier)", 
                     choices=[SEQUENCE, FOURIER], default=FOURIER)
     
     parser.add_argument("-fn", "--fourierDimensions", type=int, help="Fourier dimensions to keep. (Default: 100)", default=100)
