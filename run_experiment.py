@@ -90,10 +90,20 @@ def main():
     
     SEQUENCE = 'sequence'
     FOURIER = 'fourier'
-    parser.add_argument("-r", "--representation", help="Type of representation: sequence or fourier. (Default: fourier)", 
+    parser.add_argument("-r", "--representation", help="Type of representation: sequence or fourier. (Default: sequence)", 
                     choices=[SEQUENCE, FOURIER], default=FOURIER)
     
     parser.add_argument("-fn", "--fourierDimensions", type=int, help="Fourier dimensions to keep. (Default: 100)", default=100)
+
+
+    def validate_int_none(value):
+        if value.lower() == 'none':
+            return None
+        else:
+            try:
+                return(int(value))
+            except ValueError:
+                raise argparse.ArgumentTypeError("Invalid value. It must be either an integer or None.")
 
     LSTM = 'lstm'
     LINEAR = 'linear'
@@ -106,6 +116,12 @@ def main():
     parser.add_argument("-cl", "--classifier", choices=[LSTM,MLP,KNN,DUMMY, DUMMY_MAJORITY, DECISION_TREE], 
                         help="Selected classifier. (Default: KNN)", default=KNN)
     # TODO: Add arguments for metadata field access as label
+    parser.add_argument("-t", "--tupleIndexMetadata", help="Type the index of the tuple in the metadata. Either 1 for the damage percentage or 2 for the layers. (Default=1)",
+                        type=int, choices=[1, 2], default=1)
+    parser.add_argument("-ro", "--rowInMetadata", help="Type the row in the metadata. Type None if you want the damage percentage",
+                         type=validate_int_none, choices=[None, 0, 1, 2, 3, 4], default=None)
+    parser.add_argument("-co", "--colInMetadata", help="Type the column in the metadata. Type None if you want the damage percentage.",
+                        type=validate_int_none, choices=[None, 0, 1, 2, 3], default=None)
     # TODO: Add arguments for patience
 
     parser.add_argument("-re", "--regressor", choices=[LSTM,MLP,LINEAR,BASELINE_MEAN], 
@@ -119,7 +135,7 @@ def main():
     # LSTM params
     parser.add_argument("-ll", "--lstmLayers", type=int,
                         help="Number of LSTM layers stacked. (Default: 1)", default=1) 
-
+    
     # Read arguments
     args = parser.parse_args(sys.argv[1:])
     base_dir = args.baseDir
@@ -139,7 +155,9 @@ def main():
     n_epochs = args.epochs
     fourier_dims = args.fourierDimensions
     representation = args.representation
-
+    tup_in_met=args.tupleIndexMetadata
+    row_in_met=args.rowInMetadata
+    col_in_met=args.colInMetadata
     # Select feature vector (sequence) transform function
     if representation == FOURIER:
         # Init transformation function
@@ -158,7 +176,9 @@ def main():
             # Concatenate and return
             res = torch.cat(ffts)
             return res
-        sequence_transform = multidim_fft_transform        
+        sequence_transform = multidim_fft_transform   
+        break_sequence = False
+        subseq_size = None
     else:
         sequence_transform = None
         # In sequence representation examine if breaking down has been asked (for sequential models)
@@ -176,8 +196,13 @@ def main():
 
     # Transformation function for classification
     def transform_func(x):
-        idx = [0.025, 0.05, 0.10].index(x)
-        # idx = [0.10, 0.05, 0.025].index(x)
+        if tup_in_met == 1:
+            idx = [0.025, 0.05, 0.10].index(x)   
+            # idx = [0.10, 0.05, 0.025].index(x)
+        elif tup_in_met == 2:
+            idx = [0.00, 0.35, 0.65].index(x)
+        else:
+            raise argparse.ArgumentTypeError("Invalid value for tup_in_met. Type 1 or 2 for the tuple index.")
         return idx
 
     # Regression (no change)    
@@ -187,7 +212,7 @@ def main():
     # Meta-data format
     # case_id, dmg_perc, dmg_tensor, dmg_loc_x, dmg_loc_y    
     dataset = StructuralDamageDataset(data, meta_data, 
-                                      tgt_tuple_index_in_metadata=1,  tgt_row_in_metadata=None, tgt_col_in_metadata=None, # What to use: dmg percentage
+                                      tgt_tuple_index_in_metadata=tup_in_met,  tgt_row_in_metadata=row_in_met, tgt_col_in_metadata=col_in_met, # What to use: dmg percentage
                                       label_transform_func=transform_func, feature_vector_transform_func=sequence_transform)
 
 
