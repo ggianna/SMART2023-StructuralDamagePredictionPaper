@@ -32,19 +32,29 @@ class NeuralNetTrainer():
         for epoch in range(self.n_epochs):
             epoch_total_loss = 0.0
             self.model.train()
+            iBatchCnt = 0 # DEBUG
             for X_batch, y_batch in train_loader:
+                iBatchCnt += 1
                 X_batch = X_batch.to(self.device)
                 y_batch = y_batch.to(self.device)
 
                 y_pred = self.model(X_batch)
 
                 loss = self.loss_fn(y_pred, y_batch)
-                # Update epoch total
-                epoch_total_loss += loss.detach()
+                if (torch.isnan(loss)):
+                    l.log("WARNING!!! Epoch: %d; Batch: %d; Loss is NAN! Ignoring..."%(epoch, iBatchCnt))
+                    self.optimizer.zero_grad()
+                    continue
+                else:
+                    # DOES NOT WORK: Parameter clipping to avoid NaNs
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), 0.5, error_if_nonfinite=True)
 
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
+                    # Update epoch total
+                    epoch_total_loss += loss.detach()
+
+                    self.optimizer.zero_grad()
+                    loss.backward()
+                    self.optimizer.step()
             # Log result so far
             if epoch % output_every == 0:
                 l.log("Epoch: %d; Loss: %8.6f (sec per epoch %6.2f)"%(epoch, epoch_total_loss, (time.time() - start_time) / (epoch + 1)))

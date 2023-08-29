@@ -72,6 +72,7 @@ def main():
     parser = argparse.ArgumentParser(description='Structural data analysis and prediction.')
 
     parser.add_argument("-b", "--baseDir",  help="The base directory of the dataset. (Default: data/)", default="data/")
+    parser.add_argument("-tbs", "--trainingBatchSize", type=int, help="Training batch size. (Default: 4)", default=4)
 
     LEAVE_ONE_OUT = "leave-one-out"
     STRATIFY = "stratify"
@@ -135,7 +136,7 @@ def main():
     # LSTM params
     parser.add_argument("-ll", "--lstmLayers", type=int,
                         help="Number of LSTM layers stacked. (Default: 1)", default=1) 
-    
+        
     # Read arguments
     args = parser.parse_args(sys.argv[1:])
     base_dir = args.baseDir
@@ -264,7 +265,8 @@ def main():
 
         l.log("Train / test sizes: %4d /%4d"%(len(train_data), len(test_data)))
         
-        train_dataloader = DataLoader(train_data, batch_size=4, shuffle=True, worker_init_fn=seed_worker, generator=torch_gen)
+        # TODO: Examine batch size
+        train_dataloader = DataLoader(train_data, batch_size=args.trainingBatchSize, shuffle=True, worker_init_fn=seed_worker, generator=torch_gen)
         test_dataloader = DataLoader(test_data, batch_size=1, shuffle=False)
 
         # Train model
