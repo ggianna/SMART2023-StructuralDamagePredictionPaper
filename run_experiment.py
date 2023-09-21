@@ -199,14 +199,18 @@ def main():
     data, meta_data = reader.read_data_and_metadata()
 
     # Transformation function for classification
+    transform_idx_list = [] # Init values list
     def transform_func(x):
-        if tup_in_met == 1:
-            idx = [0.025, 0.05, 0.10].index(x)    # TODO: Fix this to take into account all possibilities
-            # idx = [0.10, 0.05, 0.025].index(x)
-        elif tup_in_met == 2:
-            idx = [0.00, 0.35, 0.65].index(x)
-        else:
+        if tup_in_met not in [1,2]:
             raise argparse.ArgumentTypeError("Invalid value for tup_in_met. Type 1 or 2 for the tuple index.")
+        
+        # Search in existing list
+        try:
+            idx = transform_idx_list.index(x)    
+        except ValueError: # If not in list
+            idx = len(transform_idx_list) # Make new entry and assign number
+            l.log("Adding new class.. %d."%(idx))
+            transform_idx_list.append(x)
         return idx
 
     # Regression (no change)    
