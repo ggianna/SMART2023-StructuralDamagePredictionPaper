@@ -32,7 +32,9 @@ class NeuralNetTrainer():
         for epoch in range(self.n_epochs):
             epoch_total_loss = 0.0
             self.model.train()
+            iBatchCnt = 0 # DEBUG
             for X_batch, y_batch in train_loader:
+                iBatchCnt += 1
                 X_batch = X_batch.to(self.device)
                 y_batch = y_batch.to(self.device)
 
