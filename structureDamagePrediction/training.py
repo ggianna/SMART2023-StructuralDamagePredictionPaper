@@ -5,7 +5,7 @@ import  torch.nn as nn, torch
 from structureDamagePrediction.models import LSTMRegressionModel
 from structureDamagePrediction.utils import StartEndLogger
 from typing import Callable
-import time
+import time, math
 
 class NeuralNetTrainer():
     def __init__(self, model, optimizer = None, loss_fn = nn.L1Loss(), n_epochs = 2000, device = None) -> None:
@@ -39,6 +39,9 @@ class NeuralNetTrainer():
                 y_pred = self.model(X_batch)
 
                 loss = self.loss_fn(y_pred, y_batch)
+
+                if math.isnan(loss.detach()):
+                    raise ValueError("Loss cannot be NaN! Quiting...")
                 # Update epoch total
                 epoch_total_loss += loss.detach()
 

@@ -176,7 +176,7 @@ def main():
 
     # Transformation function for classification
     def transform_func(x):
-        idx = [0.025, 0.05, 0.10].index(x)
+        idx = [0.025, 0.05, 0.10].index(x) # TODO: Fix this to take into account all possibilities
         # idx = [0.10, 0.05, 0.025].index(x)
         return idx
 
