@@ -79,6 +79,8 @@ def main():
     parser.add_argument("-s", "--splittingMethod", help="The splitting method: leave-one-out or stratify or random. (Default: leave-one-out)",
                         choices=[LEAVE_ONE_OUT, STRATIFY, RANDOM],
                         default=LEAVE_ONE_OUT)
+    parser.add_argument("-bsz", "--batchSize", type=int, help="The batch size of the training batches (where applicable). (Default: 5)", default=5)
+
 
     CLASSIFICATION = "classification"
     REGRESSION = "regression"
@@ -111,7 +113,7 @@ def main():
     parser.add_argument("-re", "--regressor", choices=[LSTM,MLP,LINEAR,BASELINE_MEAN], 
                         help="Selected regressor. (Default: %s)"%(LINEAR), default=LINEAR)
     # Sequence breaking
-    parser.add_argument("-bs", "--breakSequence", action='store_true', 
+    parser.add_argument("-bseq", "--breakSequence", action='store_true', 
                         help="Break sequence into subsequences")
     parser.add_argument("-ss", "--subseqSize", type=int,
                         help="Size of subseqeuences that the sequence will be broken down into. ", default=10) 
@@ -139,6 +141,7 @@ def main():
     n_epochs = args.epochs
     fourier_dims = args.fourierDimensions
     representation = args.representation
+    batch_size = args.batchSize
 
     # Select feature vector (sequence) transform function
     if representation == FOURIER:
@@ -239,7 +242,8 @@ def main():
 
         l.log("Train / test sizes: %4d /%4d"%(len(train_data), len(test_data)))
         
-        train_dataloader = DataLoader(train_data, batch_size=4, shuffle=True, worker_init_fn=seed_worker, generator=torch_gen)
+        # Use batch size and create batches. (Note: batch size is meaningful only on the training part)
+        train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True, worker_init_fn=seed_worker, generator=torch_gen)
         test_dataloader = DataLoader(test_data, batch_size=1, shuffle=False)
 
         # Train model
